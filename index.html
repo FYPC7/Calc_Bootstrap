@@ -1,728 +1,593 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter } from 'recharts';
-import { Calculator, BarChart3, TrendingUp, Users, Target, Settings, Play, Download } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bootstrap - Ejercicios Estadísticos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-const BootstrapApp = () => {
-  const [selectedExercise, setSelectedExercise] = useState(1);
-  const [confidenceLevel, setConfidenceLevel] = useState(95);
-  const [bootstrapSamples, setBootstrapSamples] = useState(1000);
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [inputData, setInputData] = useState({});
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffeef4, #e8f4f8, #f0f8e8, #fff5e8);
+            min-height: 100vh;
+            color: #5a5a5a;
+        }
 
-  // Datos predeterminados para cada ejercicio
-  const defaultData = {
-    1: { data: [502, 498, 505, 501, 499, 503, 497, 504, 500, 502, 498, 506, 499, 501, 504] },
-    2: { 
-      systemA: [120, 115, 125, 118, 122, 119, 123, 117, 121, 124],
-      systemB: [135, 132, 138, 134, 136, 133, 139, 131, 137, 140]
-    },
-    3: { data: [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1] },
-    4: {
-      hours: [2, 4, 3, 5, 1, 6, 3, 4, 2, 5, 7, 3, 4, 6, 2],
-      grades: [65, 78, 72, 85, 58, 88, 70, 79, 63, 82, 92, 68, 75, 86, 61]
-    },
-    5: { data: [2.5, 3.2, 2.8, 3.5, 2.9, 3.1, 2.7, 3.4, 3.0, 3.3, 2.6, 3.6, 2.9, 3.2, 2.8, 3.1, 2.7, 3.3, 3.0, 2.9] }
-  };
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-  // Función para generar números aleatorios
-  const random = () => Math.random();
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #f8d7da, #d4f6e8);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
 
-  // Función para calcular estadísticas básicas
-  const calculateStats = (data) => {
-    const sorted = [...data].sort((a, b) => a - b);
-    const n = data.length;
-    const mean = data.reduce((sum, val) => sum + val, 0) / n;
-    const variance = data.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
-    const std = Math.sqrt(variance);
-    const median = n % 2 === 0 ? (sorted[n/2 - 1] + sorted[n/2]) / 2 : sorted[Math.floor(n/2)];
-    
-    return { mean, variance, std, median, sorted, n };
-  };
+        .header h1 {
+            color: #6c5b7b;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
 
-  // Función para realizar bootstrap
-  const bootstrap = (data, statFunc, samples = 1000) => {
-    const bootstrapStats = [];
-    
-    for (let i = 0; i < samples; i++) {
-      const bootstrapSample = [];
-      for (let j = 0; j < data.length; j++) {
-        const randomIndex = Math.floor(random() * data.length);
-        bootstrapSample.push(data[randomIndex]);
-      }
-      bootstrapStats.push(statFunc(bootstrapSample));
-    }
-    
-    return bootstrapStats;
-  };
+        .header p {
+            color: #8b7d8b;
+            font-size: 1.1rem;
+        }
 
-  // Función para calcular intervalos de confianza
-  const calculateCI = (bootstrapStats, confidence) => {
-    const sorted = [...bootstrapStats].sort((a, b) => a - b);
-    const alpha = (100 - confidence) / 2;
-    const lowerIndex = Math.floor((alpha / 100) * sorted.length);
-    const upperIndex = Math.floor(((100 - alpha) / 100) * sorted.length) - 1;
-    
-    return {
-      lower: sorted[lowerIndex],
-      upper: sorted[upperIndex],
-      mean: sorted.reduce((sum, val) => sum + val, 0) / sorted.length
-    };
-  };
+        .exercise-selector {
+            background: linear-gradient(45deg, #e8f4f8, #ffeef4);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
 
-  // Función para ejecutar el ejercicio seleccionado
-  const runExercise = () => {
-    setLoading(true);
-    
-    setTimeout(() => {
-      let result = {};
-      
-      switch (selectedExercise) {
-        case 1: // Estimación de la media
-          const data1 = inputData[1]?.data || defaultData[1].data;
-          const stats1 = calculateStats(data1);
-          const bootstrapMeans = bootstrap(data1, (sample) => calculateStats(sample).mean, bootstrapSamples);
-          const meanCI = calculateCI(bootstrapMeans, confidenceLevel);
-          
-          result = {
-            type: 'mean',
-            originalMean: stats1.mean,
-            bootstrapMean: meanCI.mean,
-            confidenceInterval: meanCI,
-            bootstrapStats: bootstrapMeans,
-            originalData: data1
-          };
-          break;
-          
-        case 2: // Comparación de dos medias
-          const systemA = inputData[2]?.systemA || defaultData[2].systemA;
-          const systemB = inputData[2]?.systemB || defaultData[2].systemB;
-          const statsA = calculateStats(systemA);
-          const statsB = calculateStats(systemB);
-          
-          const bootstrapDiffs = [];
-          for (let i = 0; i < bootstrapSamples; i++) {
-            const sampleA = [];
-            const sampleB = [];
-            
-            for (let j = 0; j < systemA.length; j++) {
-              sampleA.push(systemA[Math.floor(random() * systemA.length)]);
-            }
-            for (let j = 0; j < systemB.length; j++) {
-              sampleB.push(systemB[Math.floor(random() * systemB.length)]);
-            }
-            
-            const meanA = calculateStats(sampleA).mean;
-            const meanB = calculateStats(sampleB).mean;
-            bootstrapDiffs.push(meanB - meanA);
-          }
-          
-          const diffCI = calculateCI(bootstrapDiffs, confidenceLevel);
-          
-          result = {
-            type: 'comparison',
-            meanA: statsA.mean,
-            meanB: statsB.mean,
-            difference: statsB.mean - statsA.mean,
-            confidenceInterval: diffCI,
-            bootstrapStats: bootstrapDiffs,
-            significant: !(diffCI.lower <= 0 && diffCI.upper >= 0)
-          };
-          break;
-          
-        case 3: // Estimación de proporciones
-          const data3 = inputData[3]?.data || defaultData[3].data;
-          const successes = data3.filter(x => x === 1).length;
-          const proportion = successes / data3.length;
-          
-          const bootstrapProps = bootstrap(data3, (sample) => {
-            const succ = sample.filter(x => x === 1).length;
-            return succ / sample.length;
-          }, bootstrapSamples);
-          
-          const propCI = calculateCI(bootstrapProps, confidenceLevel);
-          
-          result = {
-            type: 'proportion',
-            originalProportion: proportion,
-            bootstrapProportion: propCI.mean,
-            confidenceInterval: propCI,
-            bootstrapStats: bootstrapProps,
-            successes: successes,
-            total: data3.length
-          };
-          break;
-          
-        case 4: // Correlación Bootstrap
-          const hours = inputData[4]?.hours || defaultData[4].hours;
-          const grades = inputData[4]?.grades || defaultData[4].grades;
-          
-          const calculateCorrelation = (x, y) => {
-            const n = x.length;
-            const meanX = x.reduce((sum, val) => sum + val, 0) / n;
-            const meanY = y.reduce((sum, val) => sum + val, 0) / n;
-            
-            let numerator = 0;
-            let denomX = 0;
-            let denomY = 0;
-            
-            for (let i = 0; i < n; i++) {
-              const dx = x[i] - meanX;
-              const dy = y[i] - meanY;
-              numerator += dx * dy;
-              denomX += dx * dx;
-              denomY += dy * dy;
-            }
-            
-            return numerator / Math.sqrt(denomX * denomY);
-          };
-          
-          const originalCorr = calculateCorrelation(hours, grades);
-          
-          const bootstrapCorrs = [];
-          for (let i = 0; i < bootstrapSamples; i++) {
-            const indices = [];
-            for (let j = 0; j < hours.length; j++) {
-              indices.push(Math.floor(random() * hours.length));
-            }
-            
-            const bootstrapHours = indices.map(idx => hours[idx]);
-            const bootstrapGrades = indices.map(idx => grades[idx]);
-            
-            bootstrapCorrs.push(calculateCorrelation(bootstrapHours, bootstrapGrades));
-          }
-          
-          const corrCI = calculateCI(bootstrapCorrs, confidenceLevel);
-          
-          result = {
-            type: 'correlation',
-            originalCorrelation: originalCorr,
-            bootstrapCorrelation: corrCI.mean,
-            confidenceInterval: corrCI,
-            bootstrapStats: bootstrapCorrs,
-            scatterData: hours.map((h, i) => ({ x: h, y: grades[i] }))
-          };
-          break;
-          
-        case 5: // Mediana y Percentiles
-          const data5 = inputData[5]?.data || defaultData[5].data;
-          const stats5 = calculateStats(data5);
-          
-          const bootstrapMedians = bootstrap(data5, (sample) => calculateStats(sample).median, bootstrapSamples);
-          const bootstrapQ25 = bootstrap(data5, (sample) => {
-            const sorted = [...sample].sort((a, b) => a - b);
-            return sorted[Math.floor(0.25 * sorted.length)];
-          }, bootstrapSamples);
-          const bootstrapQ75 = bootstrap(data5, (sample) => {
-            const sorted = [...sample].sort((a, b) => a - b);
-            return sorted[Math.floor(0.75 * sorted.length)];
-          }, bootstrapSamples);
-          
-          const medianCI = calculateCI(bootstrapMedians, confidenceLevel);
-          const q25CI = calculateCI(bootstrapQ25, confidenceLevel);
-          const q75CI = calculateCI(bootstrapQ75, confidenceLevel);
-          
-          result = {
-            type: 'percentiles',
-            originalMedian: stats5.median,
-            medianCI: medianCI,
-            q25CI: q25CI,
-            q75CI: q75CI,
-            bootstrapStats: bootstrapMedians
-          };
-          break;
-          
-        default:
-          result = { type: 'error', message: 'Ejercicio no implementado aún' };
-      }
-      
-      setResults(result);
-      setLoading(false);
-    }, 1000);
-  };
+        .exercise-selector h3 {
+            color: #5a85a1;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
 
-  const exercises = [
-    { id: 1, title: 'Estimación de la Media', icon: Calculator, description: 'Pesos de productos manufacturados' },
-    { id: 2, title: 'Comparación de Dos Medias', icon: BarChart3, description: 'Tiempo de respuesta de sistemas' },
-    { id: 3, title: 'Estimación de Proporciones', icon: Target, description: 'Éxito en tratamiento médico' },
-    { id: 4, title: 'Correlación Bootstrap', icon: TrendingUp, description: 'Horas de estudio vs calificaciones' },
-    { id: 5, title: 'Mediana y Percentiles', icon: Users, description: 'Ingresos mensuales de empleados' }
-  ];
+        .exercise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
 
-  const handleDataInput = (exerciseId, field, value) => {
-    const parsedValue = value.split(',').map(v => {
-      const num = parseFloat(v.trim());
-      return isNaN(num) ? 0 : num;
-    });
-    
-    setInputData(prev => ({
-      ...prev,
-      [exerciseId]: {
-        ...prev[exerciseId],
-        [field]: parsedValue
-      }
-    }));
-  };
+        .exercise-btn {
+            background: linear-gradient(45deg, #c8e6c9, #b3e5fc);
+            border: none;
+            padding: 15px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #4a6741;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
 
-  const renderDataInput = () => {
-    switch (selectedExercise) {
-      case 1:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-purple-700 mb-2">
-                Datos (separados por comas):
-              </label>
-              <textarea
-                className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none"
-                rows="3"
-                placeholder="502, 498, 505, 501, 499, 503, 497, 504, 500, 502, 498, 506, 499, 501, 504"
-                defaultValue={defaultData[1].data.join(', ')}
-                onChange={(e) => handleDataInput(1, 'data', e.target.value)}
-              />
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-purple-700 mb-2">
-                Sistema A (separados por comas):
-              </label>
-              <textarea
-                className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none"
-                rows="2"
-                placeholder="120, 115, 125, 118, 122, 119, 123, 117, 121, 124"
-                defaultValue={defaultData[2].systemA.join(', ')}
-                onChange={(e) => handleDataInput(2, 'systemA', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-purple-700 mb-2">
-                Sistema B (separados por comas):
-              </label>
-              <textarea
-                className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none"
-                rows="2"
-                placeholder="135, 132, 138, 134, 136, 133, 139, 131, 137, 140"
-                defaultValue={defaultData[2].systemB.join(', ')}
-                onChange={(e) => handleDataInput(2, 'systemB', e.target.value)}
-              />
-            </div>
-          </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-purple-700 mb-2">
-                Datos (1 = éxito, 0 = fallo, separados por comas):
-              </label>
-              <textarea
-                className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none"
-                rows="3"
-                placeholder="1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1"
-                defaultValue={defaultData[3].data.join(', ')}
-                onChange={(e) => handleDataInput(3, 'data', e.target.value)}
-              />
-            </div>
-          </div>
-        );
-      case 4:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-purple-700 mb-2">
-                Horas de estudio (separadas por comas):
-              </label>
-              <textarea
-                className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none"
-                rows="2"
-                placeholder="2, 4, 3, 5, 1, 6, 3, 4, 2, 5, 7, 3, 4, 6, 2"
-                defaultValue={defaultData[4].hours.join(', ')}
-                onChange={(e) => handleDataInput(4, 'hours', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-purple-700 mb-2">
-                Calificaciones (separadas por comas):
-              </label>
-              <textarea
-                className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none"
-                rows="2"
-                placeholder="65, 78, 72, 85, 58, 88, 70, 79, 63, 82, 92, 68, 75, 86, 61"
-                defaultValue={defaultData[4].grades.join(', ')}
-                onChange={(e) => handleDataInput(4, 'grades', e.target.value)}
-              />
-            </div>
-          </div>
-        );
-      case 5:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-purple-700 mb-2">
-                Ingresos mensuales (en miles, separados por comas):
-              </label>
-              <textarea
-                className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none"
-                rows="3"
-                placeholder="2.5, 3.2, 2.8, 3.5, 2.9, 3.1, 2.7, 3.4, 3.0, 3.3, 2.6, 3.6, 2.9, 3.2, 2.8, 3.1, 2.7, 3.3, 3.0, 2.9"
-                defaultValue={defaultData[5].data.join(', ')}
-                onChange={(e) => handleDataInput(5, 'data', e.target.value)}
-              />
-            </div>
-          </div>
-        );
-      default:
-        return <div className="text-pink-600">Selecciona un ejercicio para ingresar datos</div>;
-    }
-  };
+        .exercise-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
 
-  const renderResults = () => {
-    if (!results) return null;
+        .exercise-btn.active {
+            background: linear-gradient(45deg, #ffcdd2, #d1c4e9);
+            color: #6a4c93;
+        }
 
-    const histogramData = results.bootstrapStats ? 
-      results.bootstrapStats.slice(0, 50).map((value, index) => ({
-        bin: index,
-        value: value
-      })) : [];
+        .exercise-content {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border: 2px solid #f0f0f0;
+        }
 
-    switch (results.type) {
-      case 'mean':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-pink-100 to-pink-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-pink-800">Media Original</h4>
-                <p className="text-2xl font-bold text-pink-900">{results.originalMean.toFixed(3)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-100 to-purple-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-purple-800">Media Bootstrap</h4>
-                <p className="text-2xl font-bold text-purple-900">{results.bootstrapMean.toFixed(3)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-100 to-blue-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-blue-800">IC {confidenceLevel}%</h4>
-                <p className="text-sm font-bold text-blue-900">
-                  [{results.confidenceInterval.lower.toFixed(3)}, {results.confidenceInterval.upper.toFixed(3)}]
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Distribución Bootstrap</h4>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={histogramData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="bin" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#8b5cf6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        );
-        
-      case 'comparison':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-green-100 to-green-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-800">Media A</h4>
-                <p className="text-xl font-bold text-green-900">{results.meanA.toFixed(3)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-orange-100 to-orange-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-orange-800">Media B</h4>
-                <p className="text-xl font-bold text-orange-900">{results.meanB.toFixed(3)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-100 to-purple-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-purple-800">Diferencia</h4>
-                <p className="text-xl font-bold text-purple-900">{results.difference.toFixed(3)}</p>
-              </div>
-              <div className={`bg-gradient-to-br p-4 rounded-lg ${results.significant ? 'from-red-100 to-red-200' : 'from-gray-100 to-gray-200'}`}>
-                <h4 className={`font-semibold ${results.significant ? 'text-red-800' : 'text-gray-800'}`}>
-                  Significativo
-                </h4>
-                <p className={`text-xl font-bold ${results.significant ? 'text-red-900' : 'text-gray-900'}`}>
-                  {results.significant ? 'SÍ' : 'NO'}
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-        
-      case 'proportion':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-teal-100 to-teal-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-teal-800">Proporción Original</h4>
-                <p className="text-2xl font-bold text-teal-900">{(results.originalProportion * 100).toFixed(1)}%</p>
-                <p className="text-sm text-teal-700">{results.successes}/{results.total}</p>
-              </div>
-              <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-indigo-800">Proporción Bootstrap</h4>
-                <p className="text-2xl font-bold text-indigo-900">{(results.bootstrapProportion * 100).toFixed(1)}%</p>
-              </div>
-              <div className="bg-gradient-to-br from-pink-100 to-pink-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-pink-800">IC {confidenceLevel}%</h4>
-                <p className="text-sm font-bold text-pink-900">
-                  [{(results.confidenceInterval.lower * 100).toFixed(1)}%, {(results.confidenceInterval.upper * 100).toFixed(1)}%]
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-        
-      case 'correlation':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-rose-100 to-rose-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-rose-800">Correlación Original</h4>
-                <p className="text-2xl font-bold text-rose-900">{results.originalCorrelation.toFixed(3)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-violet-100 to-violet-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-violet-800">Correlación Bootstrap</h4>
-                <p className="text-2xl font-bold text-violet-900">{results.bootstrapCorrelation.toFixed(3)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-cyan-100 to-cyan-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-cyan-800">IC {confidenceLevel}%</h4>
-                <p className="text-sm font-bold text-cyan-900">
-                  [{results.confidenceInterval.lower.toFixed(3)}, {results.confidenceInterval.upper.toFixed(3)}]
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Diagrama de Dispersión</h4>
-              <ResponsiveContainer width="100%" height={300}>
-                <ScatterChart>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="x" name="Horas" />
-                  <YAxis dataKey="y" name="Calificaciones" />
-                  <Tooltip />
-                  <Scatter data={results.scatterData} fill="#8b5cf6" />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        );
-        
-      case 'percentiles':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-amber-100 to-amber-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-amber-800">Percentil 25</h4>
-                <p className="text-xl font-bold text-amber-900">{results.q25CI.mean.toFixed(3)}</p>
-                <p className="text-xs text-amber-700">
-                  IC: [{results.q25CI.lower.toFixed(3)}, {results.q25CI.upper.toFixed(3)}]
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-100 to-emerald-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-emerald-800">Mediana (P50)</h4>
-                <p className="text-xl font-bold text-emerald-900">{results.originalMedian.toFixed(3)}</p>
-                <p className="text-xs text-emerald-700">
-                  IC: [{results.medianCI.lower.toFixed(3)}, {results.medianCI.upper.toFixed(3)}]
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-sky-100 to-sky-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-sky-800">Percentil 75</h4>
-                <p className="text-xl font-bold text-sky-900">{results.q75CI.mean.toFixed(3)}</p>
-                <p className="text-xs text-sky-700">
-                  IC: [{results.q75CI.lower.toFixed(3)}, {results.q75CI.upper.toFixed(3)}]
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-        
-      default:
-        return <div className="text-red-600">Error: {results.message}</div>;
-    }
-  };
+        .input-group {
+            margin-bottom: 20px;
+        }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-4">
-      <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-            Aplicación Bootstrap Estadística
-          </h1>
-          <p className="text-gray-600">Análisis interactivo de datos con métodos de remuestreo</p>
-        </header>
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #6c5b7b;
+            font-weight: 600;
+        }
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Panel de Selección */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Settings className="mr-2 text-purple-600" />
-                Configuración
-              </h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nivel de Confianza (%):
-                  </label>
-                  <select
-                    value={confidenceLevel}
-                    onChange={(e) => setConfidenceLevel(Number(e.target.value))}
-                    className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none bg-white"
-                  >
-                    <option value={90}>90%</option>
-                    <option value={95}>95%</option>
-                    <option value={99}>99%</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Muestras Bootstrap:
-                  </label>
-                  <select
-                    value={bootstrapSamples}
-                    onChange={(e) => setBootstrapSamples(Number(e.target.value))}
-                    className="w-full p-3 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none bg-white"
-                  >
-                    <option value={500}>500</option>
-                    <option value={1000}>1000</option>
-                    <option value={2000}>2000</option>
-                    <option value={5000}>5000</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e8e8e8;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+            background: #fafafa;
+        }
 
-            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Ejercicios</h2>
-              <div className="space-y-2">
-                {exercises.map((exercise) => {
-                  const Icon = exercise.icon;
-                  return (
-                    <button
-                      key={exercise.id}
-                      onClick={() => setSelectedExercise(exercise.id)}
-                      className={`w-full p-4 text-left rounded-lg transition-all duration-200 ${
-                        selectedExercise === exercise.id
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                          : 'bg-white/50 hover:bg-white/80 text-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Icon size={20} />
-                        <div>
-                          <div className="font-semibold text-sm">{exercise.title}</div>
-                          <div className="text-xs opacity-75">{exercise.description}</div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+        .input-group input:focus, .input-group textarea:focus, .input-group select:focus {
+            outline: none;
+            border-color: #b3e5fc;
+            background: #ffffff;
+        }
 
-          {/* Panel Principal */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                {exercises.find(e => e.id === selectedExercise)?.title}
-              </h2>
-              <p className="text-gray-600 mb-6">
-                {exercises.find(e => e.id === selectedExercise)?.description}
-              </p>
-              
-              {renderDataInput()}
-              
-              <div className="mt-6 flex space-x-4">
-                <button
-                  onClick={runExercise}
-                  disabled={loading}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                >
-                  <Play size={20} />
-                  <span>{loading ? 'Calculando...' : 'Ejecutar Bootstrap'}</span>
-                </button>
-                
-                {results && (
-                  <button
-                    onClick={() => {
-                      const dataStr = JSON.stringify(results, null, 2);
-                      const blob = new Blob([dataStr], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `bootstrap_results_exercise_${selectedExercise}.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-lg"
-                  >
-                    <Download size={20} />
-                    <span>Descargar Resultados</span>
-                  </button>
-                )}
-              </div>
-            </div>
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
 
-            {/* Panel de Resultados */}
-            {results && (
-              <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
-                  <BarChart3 className="mr-2 text-purple-600" />
-                  Resultados del Análisis Bootstrap
-                </h2>
-                {renderResults()}
-              </div>
-            )}
+        .calculate-btn {
+            background: linear-gradient(45deg, #81c784, #64b5f6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
 
-            {/* Panel de Información */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Información del Método Bootstrap</h3>
-              <div className="space-y-4 text-sm text-gray-600">
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 mb-2">¿Qué es Bootstrap?</h4>
-                  <p>
-                    Bootstrap es un método de remuestreo que permite estimar la distribución de un estadístico 
-                    mediante la generación de múltiples muestras aleatorias con reemplazo de los datos originales.
-                  </p>
-                </div>
-                
-                <div className="bg-gradient-to-r from-green-50 to-teal-50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-green-800 mb-2">Ventajas del Bootstrap</h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>No requiere supuestos distribucionales</li>
-                    <li>Proporciona intervalos de confianza robustos</li>
-                    <li>Funciona con muestras pequeñas</li>
-                    <li>Aplicable a cualquier estadístico</li>
-                  </ul>
-                </div>
-                
-                <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-pink-800 mb-2">Interpretación de Resultados</h4>
-                  <p>
-                    Los intervalos de confianza bootstrap indican el rango de valores plausibles para el parámetro 
-                    poblacional con un nivel de confianza específico. Si el intervalo no contiene cero (para diferencias), 
-                    sugiere significancia estadística.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+
+        .results {
+            background: linear-gradient(135deg, #f0f8e8, #e8f4f8);
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 25px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
+
+        .results h4 {
+            color: #4a6741;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .result-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            border-left: 4px solid #81c784;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        #histogramCanvas {
+            max-width: 100%;
+            height: 300px;
+            border-radius: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #81c784;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #f44336;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Bootstrap Estadístico</h1>
+            <p>Aplicación interactiva para resolver ejercicios de remuestreo Bootstrap</p>
         </div>
 
-        <footer className="text-center mt-12 text-gray-500 text-sm">
-          <p>Aplicación Bootstrap Estadística - Análisis de Datos Interactivo</p>
-          <p className="mt-1">Desarrollado con React y métodos de remuestreo estadístico</p>
-        </footer>
-      </div>
-    </div>
-  );
-};
+        <div class="exercise-selector">
+            <h3>📊 Selecciona un Ejercicio</h3>
+            <div class="exercise-grid">
+                <button class="exercise-btn active" onclick="selectExercise(1)">Ejercicio 1: Media</button>
+                <button class="exercise-btn" onclick="selectExercise(2)">Ejercicio 2: Dos Medias</button>
+                <button class="exercise-btn" onclick="selectExercise(3)">Ejercicio 3: Proporciones</button>
+                <button class="exercise-btn" onclick="selectExercise(4)">Ejercicio 4: Correlación</button>
+                <button class="exercise-btn" onclick="selectExercise(5)">Ejercicio 5: Mediana</button>
+                <button class="exercise-btn" onclick="selectExercise(6)">Ejercicio 6: Varianzas</button>
+                <button class="exercise-btn" onclick="selectExercise(7)">Ejercicio 7: Regresión</button>
+                <button class="exercise-btn" onclick="selectExercise(8)">Ejercicio 8: Dif. Proporciones</button>
+                <button class="exercise-btn" onclick="selectExercise(9)">Ejercicio 9: Paramétrico</button>
+                <button class="exercise-btn" onclick="selectExercise(10)">Ejercicio 10: Dependientes</button>
+            </div>
+        </div>
 
-export default BootstrapApp;
+        <div id="exerciseContent" class="exercise-content">
+            <!-- Exercise 1: Media -->
+            <div id="exercise1" class="exercise">
+                <h3>📈 Ejercicio 1: Estimación de la Media</h3>
+                <p><strong>Contexto:</strong> Pesos de productos manufacturados (en gramos)</p>
+                
+                <div class="input-group">
+                    <label>Datos (separados por comas):</label>
+                    <textarea id="data1" rows="3" placeholder="502, 498, 505, 501, 499, 503, 497, 504, 500, 502, 498, 506, 499, 501, 504">502, 498, 505, 501, 499, 503, 497, 504, 500, 502, 498, 506, 499, 501, 504</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence1">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise1()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results1" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 2: Dos Medias -->
+            <div id="exercise2" class="exercise hidden">
+                <h3>⚖️ Ejercicio 2: Comparación de Dos Medias</h3>
+                <p><strong>Contexto:</strong> Tiempo de respuesta de dos sistemas (en milisegundos)</p>
+                
+                <div class="input-group">
+                    <label>Sistema A:</label>
+                    <textarea id="dataA2" rows="2" placeholder="120, 115, 125, 118, 122, 119, 123, 117, 121, 124">120, 115, 125, 118, 122, 119, 123, 117, 121, 124</textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Sistema B:</label>
+                    <textarea id="dataB2" rows="2" placeholder="135, 132, 138, 134, 136, 133, 139, 131, 137, 140">135, 132, 138, 134, 136, 133, 139, 131, 137, 140</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence2">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise2()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results2" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 3: Proporciones -->
+            <div id="exercise3" class="exercise hidden">
+                <h3>🎯 Ejercicio 3: Estimación de Proporciones</h3>
+                <p><strong>Contexto:</strong> Éxito en tratamiento médico (1 = éxito, 0 = fallo)</p>
+                
+                <div class="input-group">
+                    <label>Datos (0s y 1s separados por comas):</label>
+                    <textarea id="data3" rows="3" placeholder="1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1">1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence3">
+                            <option value="90" selected>90%</option>
+                            <option value="95">95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise3()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results3" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 4: Correlación -->
+            <div id="exercise4" class="exercise hidden">
+                <h3>📊 Ejercicio 4: Correlación Bootstrap</h3>
+                <p><strong>Contexto:</strong> Relación entre horas de estudio y calificaciones</p>
+                
+                <div class="input-group">
+                    <label>Horas de estudio:</label>
+                    <textarea id="dataX4" rows="2" placeholder="2, 4, 3, 5, 1, 6, 3, 4, 2, 5, 7, 3, 4, 6, 2">2, 4, 3, 5, 1, 6, 3, 4, 2, 5, 7, 3, 4, 6, 2</textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Calificaciones:</label>
+                    <textarea id="dataY4" rows="2" placeholder="65, 78, 72, 85, 58, 88, 70, 79, 63, 82, 92, 68, 75, 86, 61">65, 78, 72, 85, 58, 88, 70, 79, 63, 82, 92, 68, 75, 86, 61</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence4">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise4()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results4" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 5: Mediana -->
+            <div id="exercise5" class="exercise hidden">
+                <h3>📊 Ejercicio 5: Mediana y Percentiles</h3>
+                <p><strong>Contexto:</strong> Ingresos mensuales de empleados (en miles)</p>
+                
+                <div class="input-group">
+                    <label>Datos:</label>
+                    <textarea id="data5" rows="3" placeholder="2.5, 3.2, 2.8, 3.5, 2.9, 3.1, 2.7, 3.4, 3.0, 3.3, 2.6, 3.6, 2.9, 3.2, 2.8, 3.1, 2.7, 3.3, 3.0, 2.9">2.5, 3.2, 2.8, 3.5, 2.9, 3.1, 2.7, 3.4, 3.0, 3.3, 2.6, 3.6, 2.9, 3.2, 2.8, 3.1, 2.7, 3.3, 3.0, 2.9</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence5">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise5()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results5" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 6: Varianzas -->
+            <div id="exercise6" class="exercise hidden">
+                <h3>⚖️ Ejercicio 6: Razón de Varianzas</h3>
+                <p><strong>Contexto:</strong> Variabilidad en dos procesos de producción</p>
+                
+                <div class="input-group">
+                    <label>Proceso 1:</label>
+                    <textarea id="dataA6" rows="2" placeholder="45.2, 44.8, 45.5, 44.9, 45.1, 45.0, 44.7, 45.3, 44.6, 45.4">45.2, 44.8, 45.5, 44.9, 45.1, 45.0, 44.7, 45.3, 44.6, 45.4</textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Proceso 2:</label>
+                    <textarea id="dataB6" rows="2" placeholder="43.8, 44.5, 43.2, 44.1, 43.9, 44.3, 43.6, 44.0, 43.7, 44.2">43.8, 44.5, 43.2, 44.1, 43.9, 44.3, 43.6, 44.0, 43.7, 44.2</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence6">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise6()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results6" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 7: Regresión -->
+            <div id="exercise7" class="exercise hidden">
+                <h3>📈 Ejercicio 7: Bootstrap en Regresión</h3>
+                <p><strong>Contexto:</strong> Predicción de ventas basada en publicidad</p>
+                
+                <div class="input-group">
+                    <label>Publicidad (x):</label>
+                    <textarea id="dataX7" rows="2" placeholder="10, 15, 20, 25, 30, 35, 40, 45, 50, 55">10, 15, 20, 25, 30, 35, 40, 45, 50, 55</textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Ventas (y):</label>
+                    <textarea id="dataY7" rows="2" placeholder="23, 28, 35, 41, 46, 52, 58, 63, 69, 74">23, 28, 35, 41, 46, 52, 58, 63, 69, 74</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence7">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise7()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results7" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 8: Diferencia Proporciones -->
+            <div id="exercise8" class="exercise hidden">
+                <h3>⚖️ Ejercicio 8: Diferencia de Proporciones</h3>
+                <p><strong>Contexto:</strong> Efectividad de dos tratamientos</p>
+                
+                <div class="input-group">
+                    <label>Tratamiento A (0s y 1s):</label>
+                    <textarea id="dataA8" rows="2" placeholder="1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1">1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1</textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Tratamiento B (0s y 1s):</label>
+                    <textarea id="dataB8" rows="2" placeholder="1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0">1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence8">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise8()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results8" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 9: Paramétrico -->
+            <div id="exercise9" class="exercise hidden">
+                <h3>📊 Ejercicio 9: Bootstrap Paramétrico</h3>
+                <p><strong>Contexto:</strong> Tiempo hasta fallo de componentes electrónicos (días) - Distribución Exponencial</p>
+                
+                <div class="input-group">
+                    <label>Datos:</label>
+                    <textarea id="data9" rows="3" placeholder="145, 167, 132, 178, 156, 143, 189, 134, 165, 152, 171, 148, 163, 139, 175">145, 167, 132, 178, 156, 143, 189, 134, 165, 152, 171, 148, 163, 139, 175</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence9">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise9()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results9" class="results hidden"></div>
+            </div>
+
+            <!-- Exercise 10: Dependientes -->
+            <div id="exercise10" class="exercise hidden">
+                <h3>📈 Ejercicio 10: Bootstrap con Datos Dependientes</h3>
+                <p><strong>Contexto:</strong> Retornos diarios de acciones (%) - Bootstrap por bloques</p>
+                
+                <div class="input-group">
+                    <label>Datos:</label>
+                    <textarea id="data10" rows="3" placeholder="0.5, 1.2, -0.3, 0.8, 1.1, -0.6, 0.4, 0.9, -0.2, 1.3, 0.7, -0.4, 0.6, 1.0, -0.1, 0.8, 1.2, -0.5, 0.3, 0.9">0.5, 1.2, -0.3, 0.8, 1.1, -0.6, 0.4, 0.9, -0.2, 1.3, 0.7, -0.4, 0.6, 1.0, -0.1, 0.8, 1.2, -0.5, 0.3, 0.9</textarea>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Tamaño de Bloque:</label>
+                        <input type="number" id="blockSize10" value="4" min="2" max="10">
+                    </div>
+                    <div class="input-group">
+                        <label>Nivel de Confianza (%):</label>
+                        <select id="confidence10">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="calculate-btn" onclick="calculateExercise10()">Calcular Bootstrap</button>
+                </div>
+                
+                <div id="results10" class="results hidden"></div>
+            </div>
+        </div>
+
+        <div class="chart-container hidden" id="chartContainer">
+            <h4>📊 Distribución Bootstrap</h4>
+            <canvas id="histogramCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let currentExercise = 1;
+        let bootstrapSamples = 1000;
+
+        function selectExercise(exerciseNum) {
+            // Update active button
+            document.querySelectorAll('.exercise-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Hide all exercises
+            document.querySelectorAll('.exercise').forEach(ex => ex.classList.add('hidden'));
+            
+            // Show selected exercise
+            document.getElementById(`exercise${exerciseNum}`).classList.remove('hidden');
+            
+            // Hide results and chart
+            document.getElementById(`results${currentExercise}`).classList.add('hidden');
+            document.getElementById('chartContainer').classList.add('hidden');
+            
+            currentExercise = exerciseNum;
+        }
+
+        function parseData(dataString) {
+            return dataString.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+        }
+
+        function mean(arr) {
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        }
+
+        function variance(arr) {
+            const m = mean(arr);
+            return arr.reduce((sum, x) => sum + Math.pow(x - m, 2), 0) / (arr.length - 1);
+        }
+
+        function standardDeviation(arr) {
+            return Math.sqrt(variance(arr));
+        }
+
+        function median(arr) {
+            const sorted = [...arr].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+
+        function percentile(arr, p) {
+            const sorted = [...arr].sort((a, b) => a - b);
+            const index = (p / 100) * (sorted.length - 1);
+            const lower = Math.floor(index);
+            const upper = Math.ceil(index);
+            const weight = index % 1;
+            return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+        }
+
+        function correlation(x, y) {
+            const n = x.length;
+            const sumX = x.reduce((a, b) => a + b, 0);
+            const sumY = y.reduce((a, b) => a + b, 0);
+            const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+            const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+            const sumY2 = y.reduce((sum, yi) => sum + yi * yi, 0);
+            
+            return (n * sumXY - sumX * sumY) / Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+        }
+
+        function linearRegression(x, y) {
+            const n = x.length;
+            const sumX = x.reduce((a, b) => a + b, 0);
+            const sumY = y.reduce((a, b) => a + b, 0);
+            const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+            const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope *
